@@ -1,12 +1,6 @@
-#for index in range(len(string["test"])): # length of the array
-#  for key in string["test"][index]: # loops over the keys in the array for each index
-#      print(string["test"][index][key] # prints values of the keys
-
-#^^
-# Need to perform the same on agents to grab the agentId
-
-# response = requests.post('https://api.thousandeyes.com/tests/http-server/new.json', json=data,  headers={'Authorization': 'Basic %s' % 'cGF0cnlhbjFAcGFsb2FsdG9uZXR3b3Jrcy5jb206YWdxOXh5OTRpZ3cwaHAxNGwyMWFzdmVvbGtiemp1amQ='})
-# data = {"interval": 300, "agents":[{"agentId": 206}], "server": "www.patrick.com", "port": 80, "alertsEnabled": 0}
+ANSIBLE_METADATA = {'metadata_version': '1.0',
+                    'status': ['preview'],
+                    'supported_by': 'community'}
 
 DOCUMENTATION = '''
 module: te_test
@@ -25,7 +19,41 @@ options:
       - Token from your account. This is used for authentication
   test_type:
     description:
-      - The 
+      - One of the 9 test types
+  agent_list:
+    description:
+      - List of the agent names that you want binded to the test
+  bgp_monitor_list:
+    description:
+      - List of the monitor names you want binded to the test
+  interval:
+    description:
+      - value in seconds
+  url:
+    description:
+      - Used for HTTP or website checks mainly
+  domain:
+    description:
+      - Domain name
+  test_name:
+    description:
+      - optional parameter but best practice to name all of your tests
+  server:
+    description:
+      - fqdn of DNS resolver
+  port:
+    description:
+      - port number for the server
+  protocol:
+    description:
+      - what protocol will be Used
+  alerts_enabled:
+    description:
+      - integer whether 1 is yes and 0 is no
+  prefix_bgp:
+    description:
+      - a.b.c.d is a network address, with the prefix length defined as e. Prefixes can be any length from 8 to 24
+
 '''
 
 EXAMPLES = '''
@@ -145,7 +173,6 @@ def main():
             basic_auth_token=dict(required=True),
             test_type=dict(required=True),
             agent_list=dict(type="list"),
-            payload=dict(),
             interval=dict(),
             url=dict(),
             domain=dict(),
