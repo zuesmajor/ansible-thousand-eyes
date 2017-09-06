@@ -53,7 +53,18 @@ options:
   prefix_bgp:
     description:
       - a.b.c.d is a network address, with the prefix length defined as e. Prefixes can be any length from 8 to 24
-
+  codecid:
+    description:
+      - Voice Codic list
+  dscpid:
+    description:
+      - DSCP list
+  jitterBugger:
+    description:
+      - de-jitter buffer size (in seconds)
+  targetAgentId:
+    description:
+      - Both the "agents": [] and the targetAgentId cannot be cloud agents.
 '''
 
 EXAMPLES = '''
@@ -183,9 +194,9 @@ def main():
             alerts_enabled=dict(type="int"),
             prefix_bgp=dict(),
             bgp_monitor_list=dict(type='list'), # list of bgp monitors that get passed to the bgp test
-            codecId=dict(),
-            dscpId=dict(),
-            jitterBuffer=dict(),
+            codecId=dict(type='int'),
+            dscpId=dict(type='int'),
+            jitterBuffer=dict(type='int'),
             targetAgentId=dict(),
         )
     )
