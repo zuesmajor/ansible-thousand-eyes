@@ -73,7 +73,9 @@ EXAMPLES = '''
     username: patryan1@paloaltonetworks.com
     basic_auth_token: kjahsdkfhlakjshkfhjkasdf
     test_type: http-server
-    agent_list
+    agent_list: ['Tokyo-3', 'Orlando, FL', 'Amsterdam-3']
+    url: www.google.com
+    interval: 120
 '''
 
 
@@ -87,7 +89,7 @@ def createNewTest(module):
 
 
 # module to grab agentId's to pass to createNewTest
-def buildAgentIdList(module):
+def build_agent_list(module):
     # Sample agent NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
     agent_id_array = []
 
@@ -110,7 +112,7 @@ def buildAgentIdList(module):
 
 # module to grab the monitorId's to pass to createNewTest for BGP test
 # @return list
-def buildBgpMonitorList(module):
+def build_bgp_monitor_list(module):
     # Sample monitor NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
     # need to add to monitorId
 
@@ -133,7 +135,7 @@ def buildBgpMonitorList(module):
 
 
 # Generates the payload being sent based on the test type
-def generatePayload(module):
+def generate_payload(module):
     test_type = module.params.get('test_type')
     # Default Payload
     payload = {
@@ -145,28 +147,28 @@ def generatePayload(module):
         # Required from API
         payload['prefix'] = module.params.get('prefix_bgp')
 
-        payload['monitorId'] = buildBgpMonitorList()
+        payload['monitorId'] = build_bgp_monitor_list()
 
         return payload
     elif test_type == "network"
         # Required from API
         payload['interval'] = module.params.get('interval')
-        payload['agents'] = buildAgentIdList()
+        payload['agents'] = build_agent_list()
 
         # optional
-        payload['bgpMonitors'] = buildBgpMonitorList()
+        payload['bgpMonitors'] = build_bgp_monitor_list()
         payload['port'] = module.params.get('port')
         payload['protocol'] = module.params.get('protocol')
 
         return payload
     elif test_type == "http-server":
-        payload['agents']: buildAgentIdList()
+        payload['agents']: build_agent_list()
         payload['interval']: module.params.get('interval')
         payload['url']: module.params.get('url')
 
         return payload
     elif test_type == 'page-load':
-        payload['agents'] = buildAgentIdList()
+        payload['agents'] = build_agent_list()
         payload['interval'] = module.params.get('interval')
         payload['url'] = module.params.get('url')
 
