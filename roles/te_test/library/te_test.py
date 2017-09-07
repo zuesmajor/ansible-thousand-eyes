@@ -53,18 +53,33 @@ options:
   prefix_bgp:
     description:
       - a.b.c.d is a network address, with the prefix length defined as e. Prefixes can be any length from 8 to 24
-  codecid:
+  codec_id:
     description:
       - Voice Codic list
-  dscpid:
+  dscp_id:
     description:
       - DSCP list
   jitterBugger:
     description:
       - de-jitter buffer size (in seconds)
-  targetAgentId:
+  target_agent_id:
     description:
-      - Both the "agents": [] and the targetAgentId cannot be cloud agents.
+      - Both the "agents": [] and the target_agent_id cannot be cloud agents.
+  transaction_steps_stepNum:
+    description:
+      - Steps must be provided sequentially, and must start at zero
+  transaction_steps_stepName:
+    description:
+      - name for the step
+  transaction_steps_command:
+    description:
+      - command for the step
+  transactionSteps.target:
+    description:
+      - target for the step
+  dns_server_list:
+    description:
+      - List of DNS servers required for the dns-server test type
 '''
 
 EXAMPLES = '''
@@ -85,8 +100,8 @@ from ansible.module_utils.basic import *
 
 
 def createNewTest(module):
+    payload = generate_payload(module)
     response = requests.post('https://api.thousandeyes.com/tests/' + module.params.get('test_type') + '/' + 'new.json', json=payload, headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token') })
-
 
 # module to grab agentId's to pass to createNewTest
 def build_agent_list(module):
@@ -143,40 +158,82 @@ def generate_payload(module):
         "testName": module.params.get('test_name')
     }
 
+    # 1
     if test_type == "bgp":
         # Required from API
         payload['prefix'] = module.params.get('prefix_bgp')
 
-        payload['monitorId'] = build_bgp_monitor_list()
+        payload['monitorId'] = build_bgp_monitor_list(module)
 
         return payload
+    # 2
     elif test_type == "network"
         # Required from API
         payload['interval'] = module.params.get('interval')
-        payload['agents'] = build_agent_list()
+        payload['agents'] = build_agent_list(module)
 
         # optional
-        payload['bgpMonitors'] = build_bgp_monitor_list()
+        payload['bgpMonitors'] = build_bgp_monitor_list(module)
         payload['port'] = module.params.get('port')
         payload['protocol'] = module.params.get('protocol')
 
         return payload
+    # 3
     elif test_type == "http-server":
-        payload['agents']: build_agent_list()
+        payload['agents']: build_agent_list(module)
         payload['interval']: module.params.get('interval')
         payload['url']: module.params.get('url')
 
         return payload
+    # 4
     elif test_type == 'page-load':
-        payload['agents'] = build_agent_list()
+        payload['agents'] = build_agent_list(module)
         payload['interval'] = module.params.get('interval')
         payload['url'] = module.params.get('url')
 
         return payload
+    # 5
     elif test_type == 'transactions':
+        payload['agents'] = build_agent_list(module)
+        payload['interval'] = module.params.get('interval')
+        payload['url'] = module.params.get('url')
+        payload['transactionSteps.stepNum'] = module.params.get('transaction_steps_stepNum')
+        payload['transactionSteps.stepName'] = module.params.get('transaction_steps_stepName')
+        payload['transactionSteps.command'] = module.params.get('transaction_steps_command')
+        payload['transactionSteps.target'] = module.params.get('transaction_steps_target')
 
+        return payload
+    elif test_type == "dns-trace":
+        payload['agents'] = build_agent_list(module)
+        payload['domain'] = module.params.get('domain')
+        payload['interval'] = module.params.get('interval')
 
+        return payload
+    # 6
+    elif test_type == "dns-server":
+        payload['agents'] = build_agent_list(module)
+        payload['dnsServers'] = module.params.get('dns_server_list')
+        payload['domain'] = module.params.get('domain')
+        payload['interval'] = module.params.get('interval')
 
+        return payload
+    # 7
+    elif test_type == "dns-dnssec":
+        payload['agents'] = build_agent_list(module)
+        payload['domain'] = module.params.get('domain')
+        payload['interval'] = module.params.get('interval')
+
+        return payload
+    # 8
+    elif test_type == "voice":
+        payload['agents'] = build_agent_list(module)
+        payload['codecId'] = module.params.get('codec_id')
+        payload['dscpId'] = module.params.get('dscp_id')
+        payload['interval'] = module.params.get('interval')
+        payload['jitterBuffer'] = module.params.get('jitter_buffer')
+        payload['targetAgentId'] = module.params.get('target_agent_id')
+
+        return payload
 
 
 def main():
@@ -196,10 +253,16 @@ def main():
             alerts_enabled=dict(type="int"),
             prefix_bgp=dict(),
             bgp_monitor_list=dict(type='list'), # list of bgp monitors that get passed to the bgp test
-            codecId=dict(type='int'),
-            dscpId=dict(type='int'),
-            jitterBuffer=dict(type='int'),
-            targetAgentId=dict(),
+            codec_id=dict(type='int'),
+            dscp_id=dict(type='int'),
+            jitter_buffer=dict(type='int'),
+            target_agent_id=dict(type='int'),
+            dns_server_list=dict(type='list'),
+            # These are specifically for Transaction Test Type
+            transaction_steps_stepNum=dict(type='int'),
+            transaction_steps_stepName=dict(type='str'),
+            transaction_steps_command=dict(type='str'),
+            transaction_steps_target=dict(type='str')
         )
     )
 
