@@ -101,24 +101,31 @@ from ansible.module_utils.urls import *
 
 # One function to build the json instead of using requests for each other function
 def build_test_type_json(module):
+
     if module.params.get('agent_list') and not module.params.get('bgp_monitor_list'):
-        # unicode keys
-        unicode_dict = json.loads(open_url('https://api.thousandeyes.com/agents.json', headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'), 'Content-Type':'application/json'}, method="GET").read())
-        # Removes the unicode after AST
-        json_dict = ast.literal_eval(json.dumps(unicode_dict, ensure_ascii=False))
+        agent_string = json.loads(open_url('https://api.thousandeyes.com/agents.json',
+            headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'),
+            'Content-Type':'application/json'}, method="GET").read())
 
-        return json_dict
+        agent_dict = json.loads(agent_string)
+
+        return agent_dict
+
     elif module.params.get('bgp_monitor_list') and not module.params.get('agent_list'):
-        unicode_dict = json.loads(open_url('https://api.thousandeyes.com/bgp-monitors.json', headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'), 'Content-Type':'application/json'}, method="GET").read())
-        # Removes the unicode after AST
-        json_dict = ast.literal_eval(json.dumps(unicode_dict, ensure_ascii=False))
+        monitor_string = json.loads(open_url('https://api.thousandeyes.com/bgp-monitors.json',
+            headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'),
+            'Content-Type':'application/json'}, method="GET").read())
 
-        return json_dict
+
+        monitor_dict = json.loads(monitor_string)
+
+        return monitor_dict
 
 
 def create_new_test(module):
     payload = generate_payload(module)
-    response = requests.post('https://api.thousandeyes.com/tests/' + module.params.get('test_type') + '/' + 'new.json', json=payload, headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token') })
+    response = requests.post('https://api.thousandeyes.com/tests/' + module.params.get('test_type') + '/' + 'new.json',
+        json=payload, headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token') })
 
 # module to grab agentId's to pass to create_new_test
 def build_agent_list(module):
