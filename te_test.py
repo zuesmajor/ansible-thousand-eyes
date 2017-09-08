@@ -8,7 +8,7 @@ short_description: Used to create a Thousand Eyes test
 description: You are able to create a new test for any of the 9 tests available on Thousand Eyes. Requires a Basic Auth Token from your account.
 version_added: 1.0
 author: Patrick Ryan
-requirements: requests
+requirements: none
 notes: Does not require anything other than the Requests python library.
 options:
   username:
@@ -95,23 +95,38 @@ EXAMPLES = '''
 
 
 import json
-import requests
+import ast
 from ansible.module_utils.basic import *
+from ansible.module_utils.urls import *
+
+# One function to build the json instead of using requests for each other function
+def build_test_type_json(module):
+    if module.params.get('agent_list') and not module.params.get('bgp_monitor_list'):
+        # unicode keys
+        unicode_dict = json.loads(open_url('https://api.thousandeyes.com/agents.json', headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'), 'Content-Type':'application/json'}, method="GET").read())
+        # Removes the unicode after AST
+        json_dict = ast.literal_eval(json.dumps(unicode_dict, ensure_ascii=False))
+
+        return json_dict
+    elif module.params.get('bgp_monitor_list') and not module.params.get('agent_list'):
+        unicode_dict = json.loads(open_url('https://api.thousandeyes.com/bgp-monitors.json', headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'), 'Content-Type':'application/json'}, method="GET").read())
+        # Removes the unicode after AST
+        json_dict = ast.literal_eval(json.dumps(unicode_dict, ensure_ascii=False))
+
+        return json_dict
 
 
-def createNewTest(module):
+def create_new_test(module):
     payload = generate_payload(module)
     response = requests.post('https://api.thousandeyes.com/tests/' + module.params.get('test_type') + '/' + 'new.json', json=payload, headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token') })
 
-# module to grab agentId's to pass to createNewTest
+# module to grab agentId's to pass to create_new_test
 def build_agent_list(module):
     # Sample agent NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
     agent_id_array = []
 
-    response = requests.get('https://api.thousandeyes.com/agents.json', headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token')})
-
     # String to dictionary
-    agent_list = json.loads(response.content)
+    agent_list = build_test_type_json(module)
 
     for index in range(len(agent_list['agents'])):
         for key in agent_list['agents'][index]:
@@ -124,8 +139,7 @@ def build_agent_list(module):
 
 
 
-
-# module to grab the monitorId's to pass to createNewTest for BGP test
+# module to grab the monitorId's to pass to create_new_test for BGP test
 # @return list
 def build_bgp_monitor_list(module):
     # Sample monitor NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
@@ -134,9 +148,8 @@ def build_bgp_monitor_list(module):
     # Returned array for 'bgpMonitors' key in Test
     bgp_monitor_array = []
 
-    response = requests.get('https://api.thousandeyes.com/bgp-monitors.json', headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token')})
     # String to dictionary
-    monitor_list = json.loads(response.content)
+    monitor_list = build_test_type_json(module)
 
     # We want to loop through bgp_monitor_list and grab the ID's for the monitoring id's
     for index in range(len(monitor_list['bgpMonitors'])):
@@ -265,6 +278,7 @@ def main():
             transaction_steps_target=dict(type='str')
         )
     )
+    create_new_test(module)
 
 
 if __name__ == '__main__':
