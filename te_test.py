@@ -95,37 +95,44 @@ EXAMPLES = '''
 
 
 import json
-import ast
-from ansible.module_utils.basic import *
-from ansible.module_utils.urls import *
 
 # One function to build the json instead of using requests for each other function
 def build_test_type_json(module):
 
-    if module.params.get('agent_list') and not module.params.get('bgp_monitor_list'):
-        agent_string = json.loads(open_url('https://api.thousandeyes.com/agents.json',
-            headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'),
-            'Content-Type':'application/json'}, method="GET").read())
+    try:
+        if module.params.get('agent_list') and not module.params.get('bgp_monitor_list'):
+            agent_string = open_url('https://api.thousandeyes.com/agents.json',
+                headers={'Authorization': 'Basic ' + module.params.get('basic_auth_token'),
+                'Content-Type':'application/json'}, method="GET")
+            agent_json = agent_string.read()
 
-        agent_dict = json.loads(agent_string)
+            agent_dict = json.loads(agent_json)
 
-        return agent_dict
+            return agent_dict
 
-    elif module.params.get('bgp_monitor_list') and not module.params.get('agent_list'):
-        monitor_string = json.loads(open_url('https://api.thousandeyes.com/bgp-monitors.json',
-            headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token'),
-            'Content-Type':'application/json'}, method="GET").read())
+        elif module.params.get('bgp_monitor_list') and not module.params.get('agent_list'):
+            monitor_string = json.loads(open_url('https://api.thousandeyes.com/bgp-monitors.json',
+                headers={'Authorization': 'Basic %s' + module.params.get('basic_auth_token'),
+                'Content-Type':'application/json'}, method="GET"))
+            monitor_json = monitor_string.read()
 
 
-        monitor_dict = json.loads(monitor_string)
+            monitor_dict = json.loads(monitor_string)
 
-        return monitor_dict
+            return monitor_dict
+    except:
+        module.fail_json(msg='Agent Parameter or BGP Monitor not set correctly')
 
 
 def create_new_test(module):
-    payload = generate_payload(module)
-    response = requests.post('https://api.thousandeyes.com/tests/' + module.params.get('test_type') + '/' + 'new.json',
-        json=payload, headers={'Authorization': 'Basic %s' % module.params.get('basic_auth_token') })
+    str_payload = generate_payload(module)
+    json_payload = json.dumps(str_payload)
+
+    response = open_url('https://api.thousandeyes.com/tests/' + module.params.get('test_type') + '/' + 'new.json',
+        data=json_payload, headers={'Authorization': 'Basic ' + module.params.get('basic_auth_token'), 'Content-Type':'application/json'},
+            method="POST")
+
+    return response.read()
 
 # module to grab agentId's to pass to create_new_test
 def build_agent_list(module):
@@ -139,7 +146,7 @@ def build_agent_list(module):
         for key in agent_list['agents'][index]:
             agent_dict = {}
             if agent_list['agents'][index][key] in module.params.get('agent_list'):
-                agent_dict['agents'] = agent_list['agents'][index]['agentId']
+                agent_dict['agentId'] = agent_list['agents'][index]['agentId']
                 agent_id_array.append(agent_dict)
 
     return agent_id_array
@@ -164,7 +171,7 @@ def build_bgp_monitor_list(module):
             monitor_dict = {}
             if monitor_list['bgpMonitors'][index][key] in module.params.get('bgp_monitor_list'):
                 monitor_dict['monitorId'] = monitor_list['bgpMonitors'][index]['monitorId']
-                bgp_monitor_array.append(agent_dict)
+                bgp_monitor_array.append(monitor_dict)
 
     return bgp_monitor_array
 
@@ -174,8 +181,8 @@ def generate_payload(module):
     test_type = module.params.get('test_type')
     # Default Payload
     payload = {
-        "alertsEnables": module.params.get("alerts_enabled"),
-        "testName": module.params.get('test_name')
+        "alertsEnabled": module.params.get("alerts_enabled"),
+        "testName": module.params.get('test_name'),
     }
 
     # 1
@@ -187,22 +194,25 @@ def generate_payload(module):
 
         return payload
     # 2
-    elif test_type == "network"
+    elif test_type == "network":
         # Required from API
         payload['interval'] = module.params.get('interval')
         payload['agents'] = build_agent_list(module)
 
         # optional
-        payload['bgpMonitors'] = build_bgp_monitor_list(module)
-        payload['port'] = module.params.get('port')
-        payload['protocol'] = module.params.get('protocol')
+        if module.params.get('bgp_monitor_list'):
+            payload['bgpMonitors'] = build_bgp_monitor_list(module)
+        if module.params.get('port'):
+            payload['port'] = module.params.get('port')
+        if module.params.get('protocol'):
+            payload['protocol'] = module.params.get('protocol')
 
         return payload
     # 3
     elif test_type == "http-server":
-        payload['agents']: build_agent_list(module)
-        payload['interval']: module.params.get('interval')
-        payload['url']: module.params.get('url')
+        payload['agents'] = build_agent_list(module)
+        payload['interval'] = module.params.get('interval')
+        payload['url'] = module.params.get('url')
 
         return payload
     # 4
@@ -263,14 +273,14 @@ def main():
             basic_auth_token=dict(required=True),
             test_type=dict(required=True),
             agent_list=dict(type="list"),
-            interval=dict(),
+            interval=dict(type="int"),
             url=dict(),
             domain=dict(),
             test_name=dict(required=True, type='str'),
             server=dict(),
             port=dict(type="int"),
             protocol=dict(),
-            alerts_enabled=dict(type="int"),
+            alerts_enabled=dict(required=True, type="int"),
             prefix_bgp=dict(),
             bgp_monitor_list=dict(type='list'), # list of bgp monitors that get passed to the bgp test
             codec_id=dict(type='int'),
@@ -285,8 +295,12 @@ def main():
             transaction_steps_target=dict(type='str')
         )
     )
-    create_new_test(module)
+    result= create_new_test(module)
 
+    module.exit_json(result=result)
+
+from ansible.module_utils.basic import *
+from ansible.module_utils.urls import *
 
 if __name__ == '__main__':
     main()
