@@ -23,6 +23,9 @@ options:
   agent_list:
     description:
       - List of the agent names that you want binded to the test
+  alert_list:
+    description:
+      - List of alert names that you'll want to include when alerts are enables
   bgp_monitor_list:
     description:
       - List of the monitor names you want binded to the test
@@ -93,35 +96,15 @@ EXAMPLES = '''
     interval: 120
 '''
 
+RETURN = '''
+obj:
+    description: The Json of the created Test
+    returned: success, changed
+    type: dict
+'''
+
 
 import json
-
-# One function to build the json instead of using requests for each other function
-def build_test_type_json(module):
-
-    try:
-        if module.params.get('agent_list') and not module.params.get('bgp_monitor_list'):
-            agent_string = open_url('https://api.thousandeyes.com/agents.json',
-                headers={'Authorization': 'Basic ' + module.params.get('basic_auth_token'),
-                'Content-Type':'application/json'}, method="GET")
-            agent_json = agent_string.read()
-
-            agent_dict = json.loads(agent_json)
-
-            return agent_dict
-
-        elif module.params.get('bgp_monitor_list') and not module.params.get('agent_list'):
-            monitor_string = json.loads(open_url('https://api.thousandeyes.com/bgp-monitors.json',
-                headers={'Authorization': 'Basic %s' + module.params.get('basic_auth_token'),
-                'Content-Type':'application/json'}, method="GET"))
-            monitor_json = monitor_string.read()
-
-
-            monitor_dict = json.loads(monitor_string)
-
-            return monitor_dict
-    except:
-        module.fail_json(msg='Agent Parameter or BGP Monitor not set correctly')
 
 
 def create_new_test(module):
@@ -134,13 +117,40 @@ def create_new_test(module):
 
     return response.read()
 
+
+def build_alert_list(module):
+    alert_id_array = []
+
+    if module.params.get('alert_list') and module.params.get('alerts_enabled'):
+        alert_json = open_url('https://api.thousandeyes.com/alerts.json',
+            headers={'Authorization': 'Basic ' + module.params.get('basic_auth_token'),
+            'Content-Type':'application/json'}, method="GET").read()
+
+        # string to dictionary
+        alert_list = json.loads(alert_json)
+
+        for index in range(len(alert_list['alertRules'])):
+            for key in alert_list['alertRules'][index]:
+                alert_dict = {}
+                if alert_list['alertRules'][index][key] in module.params.get('alert_list'):
+                    alert_dict['ruleId'] = alert_list['alertRules'][index]['ruleId']
+                    alert_id_array.append(alert_dict)
+
+        return alert_id_array
+
 # module to grab agentId's to pass to create_new_test
 def build_agent_list(module):
-    # Sample agent NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
     agent_id_array = []
+    # Sample agent NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
+
+    agent_json = open_url('https://api.thousandeyes.com/agents.json',
+        headers={'Authorization': 'Basic ' + module.params.get('basic_auth_token'),
+        'Content-Type':'application/json'}, method="GET").read()
+
+
 
     # String to dictionary
-    agent_list = build_test_type_json(module)
+    agent_list = json.loads(agent_json)
 
     for index in range(len(agent_list['agents'])):
         for key in agent_list['agents'][index]:
@@ -156,14 +166,18 @@ def build_agent_list(module):
 # module to grab the monitorId's to pass to create_new_test for BGP test
 # @return list
 def build_bgp_monitor_list(module):
-    # Sample monitor NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
-    # need to add to monitorId
-
     # Returned array for 'bgpMonitors' key in Test
     bgp_monitor_array = []
 
+    # Sample monitor NAME array parameter = ['Orland, FL', 'Atlanda, GA', 'Ashburn, VA-2']
+    # need to add to monitorId
+
+    monitor_json = open_url('https://api.thousandeyes.com/bgp-monitors.json',
+        headers={'Authorization': 'Basic ' + module.params.get('basic_auth_token'),
+        'Content-Type':'application/json'}, method="GET").read()
+
     # String to dictionary
-    monitor_list = build_test_type_json(module)
+    monitor_list = json.loads(monitor_json)
 
     # We want to loop through bgp_monitor_list and grab the ID's for the monitoring id's
     for index in range(len(monitor_list['bgpMonitors'])):
@@ -184,6 +198,9 @@ def generate_payload(module):
         "alertsEnabled": module.params.get("alerts_enabled"),
         "testName": module.params.get('test_name'),
     }
+
+    if module.params.get('alert_list'):
+        payload['alertRules'] = build_alert_list(module)
 
     # 1
     if test_type == "bgp":
@@ -272,7 +289,6 @@ def main():
             username=dict(required=True),
             basic_auth_token=dict(required=True),
             test_type=dict(required=True),
-            agent_list=dict(type="list"),
             interval=dict(type="int"),
             url=dict(),
             domain=dict(),
@@ -283,6 +299,8 @@ def main():
             alerts_enabled=dict(required=True, type="int"),
             prefix_bgp=dict(),
             bgp_monitor_list=dict(type='list'), # list of bgp monitors that get passed to the bgp test
+            agent_list=dict(type="list"),
+            alert_list=dict(type="list"),
             codec_id=dict(type='int'),
             dscp_id=dict(type='int'),
             jitter_buffer=dict(type='int'),
@@ -292,12 +310,13 @@ def main():
             transaction_steps_stepNum=dict(type='int'),
             transaction_steps_stepName=dict(type='str'),
             transaction_steps_command=dict(type='str'),
-            transaction_steps_target=dict(type='str')
+            transaction_steps_target=dict(type='str'),
+            supports_check_mode=False
         )
     )
     result= create_new_test(module)
 
-    module.exit_json(result=result)
+    module.exit_json(result=result, changed=True)
 
 from ansible.module_utils.basic import *
 from ansible.module_utils.urls import *
