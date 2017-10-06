@@ -287,7 +287,7 @@ def main():
     module = AnsibleModule(
         argument_spec=dict(
             username=dict(required=True),
-            basic_auth_token=dict(required=True),
+            basic_auth_token=dict(required=True, no_log=True),
             test_type=dict(required=True),
             interval=dict(type="int"),
             url=dict(),
